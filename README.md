@@ -2,7 +2,7 @@
 
 An AI coding agent skill that deeply analyzes a codebase and produces a quantified understanding score — telling the user exactly how much the agent understands, what it can build right now, and what gaps remain.
 
-Works with **Claude Code, Cursor, Windsurf, GitHub Copilot, Cline, Aider**, and any AI coding tool that supports markdown instruction files.
+Works with **any AI coding tool** that supports markdown instructions — Claude Code, Cursor, Windsurf, Zed, GitHub Copilot, Cline, Roo Code, Continue, Codex CLI, Amazon Q, Augment Code, Tabnine, Aider, Devin, Bolt, v0, Lovable, and more.
 
 ## What It Does
 
@@ -41,7 +41,31 @@ Performs a comprehensive, evidence-based codebase scan and produces:
 
 ## Install
 
-### Claude Code (CLI / Desktop / Web)
+### Quick Reference
+
+| Tool | Method | Install path |
+|------|--------|-------------|
+| Claude Code | File | `.claude/skills/system-understanding-score/SKILL.md` |
+| Cursor | File | `.cursor/skills/system-understanding-score/SKILL.md` or `.cursorrules` |
+| Windsurf | File | `.windsurfrules` or `~/.windsurf/rules/` |
+| Zed | File | `.rules` or `AGENTS.md` |
+| GitHub Copilot | File | `.github/copilot-instructions.md` or `.github/prompts/` |
+| Cline | File | `.clinerules` |
+| Roo Code | File | `.roo/rules/system-understanding-score.md` |
+| Continue | File | `.continue/rules/system-understanding-score.md` |
+| Codex CLI | File | `AGENTS.md` |
+| Amazon Q | File | `.amazonq/rules/system-understanding-score.md` |
+| Augment Code | File | `.augment/rules/system-understanding-score.md` |
+| Tabnine | File | `.tabnine/guidelines/system-understanding-score.md` |
+| Aider | Config | `--read SKILL.md` or `.aider.conf.yml` |
+| Devin | Web UI | Settings > Knowledge |
+| Bolt.new | Web UI | Project Settings > Knowledge |
+| v0 | Web UI | Settings > Preferences |
+| Lovable | Web UI | Project Settings > Knowledge |
+
+---
+
+### Claude Code
 
 **Project-level** (scoped to a single project):
 ```bash
@@ -64,7 +88,7 @@ npx skills add PrimeNexes/system-understanding-score-skill
 
 ### Cursor
 
-**Project-level:**
+**Project-level (skills directory):**
 ```bash
 mkdir -p .cursor/skills/system-understanding-score
 cp SKILL.md .cursor/skills/system-understanding-score/SKILL.md
@@ -86,13 +110,13 @@ cat SKILL.md >> .cursorrules
 
 ### Windsurf
 
-Append the skill to your Windsurf rules file:
+**Project-level:**
 ```bash
 echo "" >> .windsurfrules
 cat SKILL.md >> .windsurfrules
 ```
 
-Or place in the global rules directory:
+**User-level (global rules):**
 ```bash
 mkdir -p ~/.windsurf/rules
 cp SKILL.md ~/.windsurf/rules/system-understanding-score.md
@@ -100,16 +124,34 @@ cp SKILL.md ~/.windsurf/rules/system-understanding-score.md
 
 ---
 
+### Zed
+
+**Project-level — `.rules` file:**
+```bash
+echo "" >> .rules
+cat SKILL.md >> .rules
+```
+
+**Alternative — `AGENTS.md` (also read by Codex CLI):**
+```bash
+echo "" >> AGENTS.md
+cat SKILL.md >> AGENTS.md
+```
+
+Zed also reads `.cursorrules` and `.windsurfrules` for compatibility.
+
+---
+
 ### GitHub Copilot
 
-Append to your Copilot instructions file:
+**Instructions file:**
 ```bash
 mkdir -p .github
 echo "" >> .github/copilot-instructions.md
 cat SKILL.md >> .github/copilot-instructions.md
 ```
 
-Or use the prompt files approach (Copilot Chat):
+**Prompt file (Copilot Chat):**
 ```bash
 mkdir -p .github/prompts
 cp SKILL.md .github/prompts/system-understanding-score.prompt.md
@@ -119,7 +161,6 @@ cp SKILL.md .github/prompts/system-understanding-score.prompt.md
 
 ### Cline
 
-Append to your Cline rules:
 ```bash
 echo "" >> .clinerules
 cat SKILL.md >> .clinerules
@@ -127,19 +168,127 @@ cat SKILL.md >> .clinerules
 
 ---
 
+### Roo Code
+
+**Project-level:**
+```bash
+mkdir -p .roo/rules
+cp SKILL.md .roo/rules/system-understanding-score.md
+```
+
+**User-level (global):**
+```bash
+mkdir -p ~/.roo/rules
+cp SKILL.md ~/.roo/rules/system-understanding-score.md
+```
+
+Also reads `.clinerules` for legacy compatibility.
+
+---
+
+### Continue
+
+```bash
+mkdir -p .continue/rules
+cp SKILL.md .continue/rules/system-understanding-score.md
+```
+
+---
+
+### Codex CLI (OpenAI)
+
+**Project-level — append to AGENTS.md:**
+```bash
+echo "" >> AGENTS.md
+cat SKILL.md >> AGENTS.md
+```
+
+**User-level (global):**
+```bash
+mkdir -p ~/.codex
+echo "" >> ~/.codex/AGENTS.md
+cat SKILL.md >> ~/.codex/AGENTS.md
+```
+
+---
+
+### Amazon Q Developer
+
+```bash
+mkdir -p .amazonq/rules
+cp SKILL.md .amazonq/rules/system-understanding-score.md
+```
+
+---
+
+### Augment Code
+
+```bash
+mkdir -p .augment/rules
+cp SKILL.md .augment/rules/system-understanding-score.md
+```
+
+---
+
+### Tabnine
+
+```bash
+mkdir -p .tabnine/guidelines
+cp SKILL.md .tabnine/guidelines/system-understanding-score.md
+```
+
+---
+
 ### Aider
 
-Add as a read-only context file in your aider config:
-```bash
-# In .aider.conf.yml
+**Via config file** (`.aider.conf.yml`):
+```yaml
 read:
   - SKILL.md
 ```
 
-Or pass it directly:
+**Via CLI:**
 ```bash
 aider --read SKILL.md
 ```
+
+---
+
+### Devin
+
+1. Open Devin web interface
+2. Go to **Settings & Library > Knowledge**
+3. Create a new knowledge entry
+4. Paste the contents of `SKILL.md`
+
+---
+
+### Bolt.new
+
+1. Click the **gear icon** in your project
+2. Go to **All project settings > Knowledge**
+3. Paste the contents of `SKILL.md`
+
+For global rules: **Personal Settings > Personal Knowledge**
+
+---
+
+### v0 by Vercel
+
+1. Go to **Settings > Preferences**
+2. Paste the contents of `SKILL.md` as custom instructions
+
+Also supports project-level and chat-level instructions.
+
+---
+
+### Lovable
+
+1. Click the **gear icon** in your project
+2. Go to **Project Settings > Knowledge**
+3. Paste the contents of `SKILL.md`
+
+For workspace-wide rules: use **Workspace Knowledge** instead.
 
 ---
 
@@ -147,9 +296,9 @@ aider --read SKILL.md
 
 The skill is a standard markdown file. To use it with any tool:
 
-1. **If the tool supports a rules/instructions file** — append or include `SKILL.md` content in that file
-2. **If the tool supports context files** — add `SKILL.md` as a context/reference file
-3. **If the tool supports system prompts** — paste the content of `SKILL.md` as a system prompt
+1. **If the tool supports a rules/instructions file** — append or include `SKILL.md` content
+2. **If the tool supports a rules directory** — copy `SKILL.md` into it
+3. **If the tool supports system prompts** — paste the content as a system prompt
 4. **Manual** — paste the content into the chat when you want the agent to score the project
 
 ## Usage
