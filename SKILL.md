@@ -25,9 +25,190 @@ Apply this skill when the user asks for:
 - "Score this project" or "Analyze this project"
 - Any readiness or confidence assessment
 
-## Execution Steps
+## Execution Strategy
 
-You MUST follow these steps in order. Do not skip any step. Be thorough — read actual files, do not guess.
+### Subagent Architecture
+
+This skill performs a **deep, comprehensive** codebase analysis. To do this efficiently, you MUST spawn parallel subagents to analyze different dimensions concurrently. Do NOT attempt to scan the entire codebase sequentially — it is too slow and risks incomplete coverage.
+
+**How parallelism works across tools:**
+- **Claude Code**: Use the `Agent` tool to spawn multiple subagents in a single message. Each subagent gets its own context window and can read hundreds of files independently. Use `subagent_type: "Explore"` for read-only scanning agents. Launch them in parallel (multiple Agent calls in one response).
+- **Cursor**: Use parallel tool calls to read and search files concurrently. If Composer mode is available, spawn multiple composer agents for independent dimension analysis. Use background agents where supported.
+- **Other tools**: Use whatever parallelism the tool supports — concurrent file reads, background tasks, or sequential scan if no parallelism is available.
+
+### Subagent Definitions
+
+After Step 1 (Project Type Detection), spawn the following subagents **in parallel** based on the detected project type:
+
+#### For Frontend projects — spawn these 4 agents simultaneously:
+
+**Agent 1: Design System Scanner**
+```
+Analyze the design system and UI component architecture of this project.
+Read and report on:
+- All files in the UI/component library directories (components/ui/, components/common/, etc.)
+- Component props, variants, composition patterns
+- Tailwind/CSS config, theme tokens, CSS variables, design tokens
+- Layout patterns, grid systems, responsive breakpoints, spacing scale
+- Storybook config if present
+- Any design token files (.json, .ts, .css) used for theming
+Return: list of every component file read, theme tokens found, design patterns identified,
+and any gaps (missing variants, undocumented components, inconsistent patterns).
+```
+
+**Agent 2: API & Data Flow Scanner**
+```
+Analyze the API integration layer and data flow architecture of this project.
+Read and report on:
+- All API client files (GraphQL documents, REST clients, tRPC routers, fetch wrappers)
+- API hooks, query/mutation definitions, codegen output
+- Schema files, type definitions for request/response shapes
+- State management setup (Redux, Zustand, Context, etc.) and how API data flows into state
+- Data transformation layers, middleware, BFF patterns, error handling
+- Trace at least 2 complete data paths: API call → state update → UI render
+Return: list of every API file read, schemas found, data flows traced with specific file:line references,
+and any gaps (untyped endpoints, missing error handling, unclear data flows).
+```
+
+**Agent 3: Build & Toolchain Scanner**
+```
+Analyze the build toolchain, developer experience, and code health of this project.
+Read and report on:
+- Build config (next.config, vite.config, webpack, turbopack, etc.)
+- TypeScript config (tsconfig) — strict mode, path aliases, module resolution
+- Linting config (eslint, biome) and formatting (prettier)
+- Pre-commit hooks (husky, lint-staged, lefthook)
+- CI/CD pipeline files (.github/workflows, Jenkinsfile, etc.)
+- Module resolution: barrel files, import patterns, circular dependency risks
+- Environment variable handling (.env files, env validation schemas)
+- SSR/CSR/ISR boundaries if applicable
+Return: list of every config file read, build pipeline steps identified,
+type safety assessment, and any issues found.
+```
+
+**Agent 4: Figma & Design Bridge Scanner**
+```
+Analyze the Figma-to-code bridge and design integration of this project.
+Read and report on:
+- Figma Code Connect config files (.figma, codeconnect.config.ts, etc.)
+- Design token bridge files (Style Dictionary, Tokens Studio, etc.)
+- Component-to-Figma mapping (naming alignment between code components and potential Figma components)
+- Design system rule files, if any
+- Any Figma plugin configs, MCP tool configs, or design tool integrations
+- CSS custom properties / Tailwind theme that could serve as design tokens
+Return: list of every design-related file found, mapping coverage assessment,
+and specific gaps blocking Figma integration.
+```
+
+#### For Backend projects — spawn these 4 agents simultaneously:
+
+**Agent 5: Architecture Scanner**
+```
+Analyze the complete backend architecture of this project.
+Read and report on:
+- Entry point and server setup (main server file, framework bootstrap)
+- All route/endpoint definitions — list every API endpoint with its HTTP method and path
+- Database schema: models, migrations, schema files, ORM config
+- Authentication and authorization flow — trace the full auth chain
+- Middleware chain — list all middleware in order
+- External service integrations (message queues, caches, third-party APIs, webhooks)
+- Microservice boundaries if applicable (service discovery, API gateways, inter-service communication)
+Return: complete architecture map with file references, service topology diagram (text-based),
+and gaps (undocumented services, unclear auth flow, missing schema access).
+```
+
+**Agent 6: Business Logic Scanner**
+```
+Analyze the business logic and domain model of this project.
+Read and report on:
+- Core domain entities and their relationships (models, types, interfaces)
+- Service/domain layer: business rules, validation logic, workflow orchestration
+- Data transformation and processing pipelines
+- Feature flags, role-based behavior, conditional business logic
+- Edge cases and guards: error conditions, boundary checks, business constraints
+- Trace at least 3 core business operations end-to-end
+Return: domain entity map, business rules catalog with file:line references,
+workflow descriptions, and gaps (implicit rules, scattered logic, undocumented behavior).
+```
+
+**Agent 7: Test & Quality Scanner**
+```
+Analyze the testing infrastructure and quality assurance setup of this project.
+Read and report on:
+- Test framework and config (jest, vitest, pytest, mocha, etc.)
+- Existing test files — read at least 5 representative tests to understand patterns
+- Test utilities: factories, fixtures, mocks, seed data, test helpers
+- Coverage config and reports if available
+- Integration vs unit vs e2e test distribution
+- Which critical business paths have test coverage and which don't
+Return: test framework details, test pattern examples, coverage assessment,
+list of tested vs untested critical paths, and gaps (missing fixtures, no integration tests, etc.).
+```
+
+**Agent 8: DevOps & Infrastructure Scanner**
+```
+Analyze the DevOps pipeline and infrastructure of this project.
+Read and report on:
+- CI/CD pipeline config (.github/workflows, Jenkinsfile, GitLab CI, CircleCI, etc.)
+- Dockerfile and docker-compose — build stages, multi-stage builds, compose services
+- Infrastructure as code (Terraform, CDK, Pulumi, CloudFormation, serverless.yml)
+- Deployment config (Vercel, Netlify, Cloudflare, AWS, GCP, platform configs)
+- Environment management: staging/production separation, env var handling, secrets
+- Monitoring and observability: logging config, APM, alerting rules, health checks
+- Database migrations strategy and rollback procedures
+Return: complete pipeline map from commit to production, environment topology,
+infrastructure components identified, and gaps (no rollback strategy, missing monitoring, etc.).
+```
+
+#### For Full-Stack / Monorepo — spawn ALL 8 agents simultaneously.
+
+#### Universal agents — ALWAYS spawn these 2 agents (in parallel with dimension agents):
+
+**Agent 9: Platform & Integration Scanner**
+```
+Analyze the overall platform, tech stack, and third-party integrations of this project.
+Read and report on:
+- package.json (or equivalent) — ALL dependencies, categorized by purpose
+- All configuration files at the project root
+- Third-party service integrations: payments (Stripe, etc.), auth (Auth0, Clerk, etc.),
+  analytics (PostHog, Segment, etc.), messaging (Twilio, SendGrid, etc.), storage (S3, etc.)
+- Environment configuration and deployment targets
+- Monorepo structure if applicable (workspaces, packages, shared libs)
+- Project documentation: README, architecture docs, API docs, onboarding guides
+- Project instruction files: CLAUDE.md, .cursorrules, .windsurfrules, .github/copilot-instructions.md
+Return: complete tech stack inventory, dependency map, integration catalog with config locations,
+and gaps (undocumented integrations, unclear environment setup).
+```
+
+**Agent 10: Business Domain & User Journey Mapper**
+```
+Analyze the business domain and how user journeys map to code in this project.
+Read and report on:
+- What does this application DO? Identify the core product/business purpose.
+- Map at least 5 core user journeys through the code (e.g., sign up, search, purchase, manage account)
+- For each journey: trace the route → component → state → API → (backend if available) path
+- Domain model alignment: do code names match business concepts?
+- Are business rules centralized or scattered across UI/API/backend?
+- Feature completeness: are there partial implementations, TODOs, or placeholder code?
+Return: business domain summary, user journey traces with file:line references,
+domain-code alignment assessment, and gaps (broken journeys, scattered logic, orphaned code).
+```
+
+### Subagent Merge Strategy
+
+After ALL subagents return their results:
+
+1. **Collect** all evidence logs from each agent
+2. **Cross-reference** findings — one agent's output may affect another's score (e.g., if Agent 6 finds unclear business logic, Agent 7's test generation cap applies)
+3. **Score** each dimension using the rubrics below, citing evidence from the relevant agent
+4. **Identify** cross-cutting gaps that span multiple dimensions
+5. **Generate** the final output in the required format
+
+If any subagent fails or returns incomplete results, note this in the evidence log and apply the relevant auto-cap rule for that dimension.
+
+---
+
+## Execution Steps
 
 ### Step 1: Project Type Detection
 
@@ -39,11 +220,13 @@ Classify as one of:
 - **Full-Stack** — Both frontend and backend in the same repo
 - **Monorepo** — Multiple packages/services (detect with workspaces, Turborepo, Nx, Lerna)
 
-### Step 2: Deep Codebase Scan
+### Step 2: Spawn Subagents for Deep Codebase Scan
 
-For each applicable dimension (based on project type), systematically scan and read files. **You must read actual file contents** — do not score based on file names alone.
+Based on the project type detected in Step 1, launch the relevant subagents **in parallel** as defined in the Subagent Architecture section above. Each subagent independently scans its assigned dimension and returns structured findings.
 
-#### What to scan:
+**You must read actual file contents** — do not score based on file names alone. Instruct each subagent to read files, not just list them.
+
+#### What the subagents collectively cover:
 - **Config files**: package.json, tsconfig, eslint, prettier, tailwind, postcss, webpack/vite/next config
 - **Entry points**: app/, pages/, src/index, main.ts, server.ts
 - **Routing**: file-based routes, router configs, API route definitions
@@ -59,9 +242,9 @@ For each applicable dimension (based on project type), systematically scan and r
 - **Design system**: Component library exports, Storybook, design tokens
 - **Figma integration**: Code Connect files, design token bridges, figma plugin configs
 
-### Step 3: Score Each Dimension
+### Step 3: Merge Results & Score Each Dimension
 
-Score each applicable dimension using the rubrics below. Every score MUST reference specific files, functions, or patterns found during the scan.
+Once all subagents return, merge their findings and score each applicable dimension using the rubrics below. Every score MUST reference specific files, functions, or patterns found by the subagents. Apply cross-cutting caps (e.g., unclear business logic caps test generation score).
 
 ### Step 4: Generate Output
 
