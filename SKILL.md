@@ -25,6 +25,65 @@ Apply this skill when the user asks for:
 - "Score this project" or "Analyze this project"
 - Any readiness or confidence assessment
 
+## Execution Steps
+
+### Step 0: Discover & Respect Project Rules (MANDATORY — Run First)
+
+Before any analysis begins, you MUST find and read ALL existing project instruction and rule files. These rules are set by the project owner and **OVERRIDE any default behavior** of this skill or its subagents.
+
+**Search for and read these files (if they exist):**
+- `CLAUDE.md` — Claude Code project instructions
+- `.cursorrules` — Cursor IDE rules
+- `.windsurfrules` — Windsurf rules
+- `.github/copilot-instructions.md` — GitHub Copilot instructions
+- `.clinerules` — Cline rules
+- `.roo/rules/` — Roo Code rules directory
+- `.continue/rules/` — Continue rules directory
+- `AGENTS.md` — Codex CLI / Zed instructions
+- `.amazonq/rules/` — Amazon Q rules
+- `.augment/rules/` — Augment Code rules
+- `.tabnine/guidelines/` — Tabnine guidelines
+- Any other `*.rules`, `*.md` files in `.cursor/`, `.claude/`, `.github/` directories
+
+**What to extract from project rules:**
+1. **Build restrictions** — Can the agent run build commands? (e.g., "Never build the repository")
+2. **Deployment restrictions** — Can the agent deploy or run deployment commands?
+3. **Code style mandates** — Required formatting, naming conventions, import order, etc.
+4. **Framework mandates** — Required libraries, UI primitives, styling approach (e.g., "use Tailwind + Radix UI")
+5. **Testing mandates** — Required test frameworks, patterns, coverage thresholds
+6. **File naming conventions** — PascalCase components, kebab-case folders, etc.
+7. **Commit conventions** — Conventional commits, signed commits, etc.
+8. **Any explicit prohibitions** — Things the agent must NOT do
+
+**Critical rule**: Pass all discovered project rules to every subagent as context. Subagents MUST NOT violate project rules during analysis. For example:
+- If rules say "never build" → subagents MUST NOT run build commands; score Build Health (F3) by reading configs only
+- If rules mandate specific frameworks → factor this into Design System scoring
+- If rules restrict deployment → DevOps scoring should note this constraint
+
+Store the discovered rules as `PROJECT_RULES` context and include them in every subagent prompt.
+
+### Step 0.5: Detect Available Tools & Plugins
+
+Check what tools, MCP servers, and plugins are available to the agent. This directly affects scoring caps and what the agent can actually do.
+
+**Check for:**
+- **Figma tools**: Figma MCP server, Code Connect MCP, Pencil MCP, Figma plugin — lifts F4 cap above 20
+- **Design tools**: Stitch, Pencil, UI/UX design MCPs — boosts F1 scoring potential
+- **Database tools**: Database MCP servers, query tools — boosts B1 scoring potential
+- **CI/CD tools**: GitHub Actions MCP, deployment MCPs — boosts B4 scoring potential
+- **Browser/preview tools**: Preview MCP, Chrome control — enables runtime verification
+- **Documentation tools**: Notion MCP, Confluence MCP — may provide architecture docs
+- **Communication tools**: Slack MCP — may have context about ongoing work
+
+**How to detect (by platform):**
+- **Claude Code**: Check system prompt for MCP tool listings, check `settings.json` for `enabledPlugins` and permissions
+- **Cursor**: Check for enabled extensions and composer capabilities
+- **Other tools**: Check for available tool/function definitions
+
+Store discovered tools as `AVAILABLE_TOOLS` context and pass to relevant subagents.
+
+---
+
 ## Execution Strategy
 
 ### Subagent Architecture
@@ -38,12 +97,27 @@ This skill performs a **deep, comprehensive** codebase analysis. To do this effi
 
 ### Subagent Definitions
 
-After Step 1 (Project Type Detection), spawn the following subagents **in parallel** based on the detected project type:
+After Step 1 (Project Type Detection), spawn the following subagents **in parallel** based on the detected project type.
+
+**CRITICAL — Every subagent prompt MUST be prefixed with:**
+```
+CONTEXT — Respect these project rules during analysis:
+{PROJECT_RULES}  ← insert the rules discovered in Step 0
+
+CONTEXT — Available tools and plugins:
+{AVAILABLE_TOOLS}  ← insert the tools discovered in Step 0.5
+
+IMPORTANT: Do NOT run any commands that violate the project rules above.
+If rules say "never build" — do NOT run build commands; analyze by reading configs only.
+If rules mandate specific frameworks — note compliance/deviation in your findings.
+```
 
 #### For Frontend projects — spawn these 4 agents simultaneously:
 
 **Agent 1: Design System Scanner**
 ```
+{INSERT PROJECT_RULES AND AVAILABLE_TOOLS CONTEXT HERE}
+
 Analyze the design system and UI component architecture of this project.
 Read and report on:
 - All files in the UI/component library directories (components/ui/, components/common/, etc.)
@@ -58,6 +132,8 @@ and any gaps (missing variants, undocumented components, inconsistent patterns).
 
 **Agent 2: API & Data Flow Scanner**
 ```
+{INSERT PROJECT_RULES AND AVAILABLE_TOOLS CONTEXT HERE}
+
 Analyze the API integration layer and data flow architecture of this project.
 Read and report on:
 - All API client files (GraphQL documents, REST clients, tRPC routers, fetch wrappers)
@@ -72,7 +148,10 @@ and any gaps (untyped endpoints, missing error handling, unclear data flows).
 
 **Agent 3: Build & Toolchain Scanner**
 ```
+{INSERT PROJECT_RULES AND AVAILABLE_TOOLS CONTEXT HERE}
+
 Analyze the build toolchain, developer experience, and code health of this project.
+IMPORTANT: Do NOT run build commands — analyze by reading config files only.
 Read and report on:
 - Build config (next.config, vite.config, webpack, turbopack, etc.)
 - TypeScript config (tsconfig) — strict mode, path aliases, module resolution
@@ -88,6 +167,8 @@ type safety assessment, and any issues found.
 
 **Agent 4: Figma & Design Bridge Scanner**
 ```
+{INSERT PROJECT_RULES AND AVAILABLE_TOOLS CONTEXT HERE}
+
 Analyze the Figma-to-code bridge and design integration of this project.
 Read and report on:
 - Figma Code Connect config files (.figma, codeconnect.config.ts, etc.)
@@ -104,6 +185,8 @@ and specific gaps blocking Figma integration.
 
 **Agent 5: Architecture Scanner**
 ```
+{INSERT PROJECT_RULES AND AVAILABLE_TOOLS CONTEXT HERE}
+
 Analyze the complete backend architecture of this project.
 Read and report on:
 - Entry point and server setup (main server file, framework bootstrap)
@@ -119,6 +202,8 @@ and gaps (undocumented services, unclear auth flow, missing schema access).
 
 **Agent 6: Business Logic Scanner**
 ```
+{INSERT PROJECT_RULES AND AVAILABLE_TOOLS CONTEXT HERE}
+
 Analyze the business logic and domain model of this project.
 Read and report on:
 - Core domain entities and their relationships (models, types, interfaces)
@@ -133,6 +218,8 @@ workflow descriptions, and gaps (implicit rules, scattered logic, undocumented b
 
 **Agent 7: Test & Quality Scanner**
 ```
+{INSERT PROJECT_RULES AND AVAILABLE_TOOLS CONTEXT HERE}
+
 Analyze the testing infrastructure and quality assurance setup of this project.
 Read and report on:
 - Test framework and config (jest, vitest, pytest, mocha, etc.)
@@ -147,7 +234,10 @@ list of tested vs untested critical paths, and gaps (missing fixtures, no integr
 
 **Agent 8: DevOps & Infrastructure Scanner**
 ```
+{INSERT PROJECT_RULES AND AVAILABLE_TOOLS CONTEXT HERE}
+
 Analyze the DevOps pipeline and infrastructure of this project.
+IMPORTANT: Do NOT run deployment or infrastructure commands — analyze by reading config files only.
 Read and report on:
 - CI/CD pipeline config (.github/workflows, Jenkinsfile, GitLab CI, CircleCI, etc.)
 - Dockerfile and docker-compose — build stages, multi-stage builds, compose services
@@ -166,6 +256,8 @@ infrastructure components identified, and gaps (no rollback strategy, missing mo
 
 **Agent 9: Platform & Integration Scanner**
 ```
+{INSERT PROJECT_RULES AND AVAILABLE_TOOLS CONTEXT HERE}
+
 Analyze the overall platform, tech stack, and third-party integrations of this project.
 Read and report on:
 - package.json (or equivalent) — ALL dependencies, categorized by purpose
@@ -182,6 +274,8 @@ and gaps (undocumented integrations, unclear environment setup).
 
 **Agent 10: Business Domain & User Journey Mapper**
 ```
+{INSERT PROJECT_RULES AND AVAILABLE_TOOLS CONTEXT HERE}
+
 Analyze the business domain and how user journeys map to code in this project.
 Read and report on:
 - What does this application DO? Identify the core product/business purpose.
@@ -208,7 +302,16 @@ If any subagent fails or returns incomplete results, note this in the evidence l
 
 ---
 
-## Execution Steps
+## Execution Steps (Summary)
+
+```
+Step 0:   Discover & Respect Project Rules     ← MANDATORY, run first
+Step 0.5: Detect Available Tools & Plugins      ← run immediately after Step 0
+Step 1:   Project Type Detection                ← classify as FE / BE / Full-Stack / Monorepo
+Step 2:   Spawn Subagents for Deep Scan         ← parallel, with PROJECT_RULES + AVAILABLE_TOOLS context
+Step 3:   Merge Results & Score Dimensions      ← cross-reference, apply caps and modifiers
+Step 4:   Generate Output                       ← full report in required format
+```
 
 ### Step 1: Project Type Detection
 
@@ -223,6 +326,8 @@ Classify as one of:
 ### Step 2: Spawn Subagents for Deep Codebase Scan
 
 Based on the project type detected in Step 1, launch the relevant subagents **in parallel** as defined in the Subagent Architecture section above. Each subagent independently scans its assigned dimension and returns structured findings.
+
+**IMPORTANT**: Inject `PROJECT_RULES` and `AVAILABLE_TOOLS` context (from Steps 0 and 0.5) into every subagent prompt.
 
 **You must read actual file contents** — do not score based on file names alone. Instruct each subagent to read files, not just list them.
 
@@ -244,7 +349,11 @@ Based on the project type detected in Step 1, launch the relevant subagents **in
 
 ### Step 3: Merge Results & Score Each Dimension
 
-Once all subagents return, merge their findings and score each applicable dimension using the rubrics below. Every score MUST reference specific files, functions, or patterns found by the subagents. Apply cross-cutting caps (e.g., unclear business logic caps test generation score).
+Once all subagents return, merge their findings and:
+1. Score each applicable dimension using the rubrics below
+2. Evaluate cross-cutting modifiers (C1-C4)
+3. Apply auto-cap rules and cross-dimension dependencies
+4. Every score MUST reference specific files, functions, or patterns found by the subagents
 
 ### Step 4: Generate Output
 
@@ -430,6 +539,60 @@ Is the business logic properly reflected and organized in the code?
 
 ---
 
+### CROSS-CUTTING CONCERNS (bonus modifiers — always assessed)
+
+These are not standalone dimensions but **modify the Agentic Delivery Readiness** score. They represent risks the agent should flag even if the primary dimensions score well.
+
+#### C1: Security Posture (modifier: -5 to +5)
+
+| Modifier | Criteria |
+|----------|----------|
+| -5 | Secrets found in code, no auth checks, SQL injection / XSS risks detected |
+| -3 | Auth exists but not fully traced, env vars in code, no input validation pattern |
+| 0 | Standard security patterns in place, auth traced, no obvious vulnerabilities |
+| +3 | Security middleware well-structured, input validation consistent, CORS/CSP configured |
+| +5 | Full security posture understood — OWASP patterns, rate limiting, secrets management, audit logging |
+
+**What to check**: .env files in repo (should be gitignored), auth middleware, input validation, CORS config, CSP headers, dependency audit (known vulnerabilities).
+
+#### C2: Accessibility (modifier: -3 to +3)
+
+| Modifier | Criteria |
+|----------|----------|
+| -3 | No a11y consideration found — no aria attributes, no semantic HTML patterns |
+| 0 | Basic a11y patterns present (semantic elements, some aria labels) |
+| +3 | Full a11y system — proper ARIA roles, keyboard navigation, screen reader support, a11y testing |
+
+**What to check**: Semantic HTML usage, ARIA attributes in components, keyboard event handlers, focus management, a11y testing tools (axe, pa11y), eslint-plugin-jsx-a11y.
+
+#### C3: Internationalization / i18n (modifier: -2 to +2)
+
+| Modifier | Criteria |
+|----------|----------|
+| -2 | Hardcoded user-facing strings everywhere, no i18n setup |
+| 0 | i18n library present (next-intl, react-i18next, etc.) but partial coverage |
+| +2 | Full i18n system — translation files, locale detection, RTL support if applicable |
+
+**What to check**: i18n library in dependencies, translation files, locale configs, string extraction patterns.
+
+#### C4: Project Rules Compliance (modifier: -5 to 0)
+
+| Modifier | Criteria |
+|----------|----------|
+| -5 | Project rules found but code violates them significantly (e.g., wrong frameworks, ignored conventions) |
+| -3 | Partial compliance — some rules followed, some ignored |
+| 0 | Full compliance with all discovered project rules, or no rules found |
+
+**What to check**: Compare `PROJECT_RULES` from Step 0 against actual code patterns.
+
+**Apply modifiers to Agentic Delivery Readiness:**
+```
+Agentic Delivery Readiness = base_readiness + C1 + C2 + C3 + C4
+(clamp to 0-100 range)
+```
+
+---
+
 ## Score Calculation
 
 ### Frontend Score (when applicable)
@@ -452,6 +615,9 @@ Universal Score = U1 + U2  (out of 100)
 If Frontend-only:  Overall = (Frontend * 0.5) + (Universal * 0.5)
 If Backend-only:   Overall = (Backend * 0.5) + (Universal * 0.5)
 If Full-Stack:     Overall = (Frontend * 0.3) + (Backend * 0.3) + (Universal * 0.4)
+If Monorepo:       Score each package/service separately, then:
+                   Overall = weighted average by package complexity
+                   (report per-package scores AND aggregate)
 ```
 
 ### Confidence Band
@@ -536,7 +702,30 @@ List tasks the agent CAN do right now, grouped by confidence:
 - Data flow changes spanning frontend and backend
 - Authentication/authorization changes across the stack
 
-### 4) Evidence Log
+### 4) Cross-Cutting Modifiers
+
+```
+Security Posture (C1):           [+X / -X]  — [brief justification]
+Accessibility (C2):              [+X / -X]  — [brief justification]
+Internationalization (C3):       [+X / -X]  — [brief justification]
+Project Rules Compliance (C4):   [+X / -X]  — [brief justification]
+```
+
+### 5) Project Rules Detected
+
+List all rule files found and key constraints:
+```
+Rules found:
+  - CLAUDE.md: code style (Prettier, Tailwind, Radix UI), build commands listed
+  - .cursorrules: NEVER run build or deploy commands
+  - settings.json: Figma plugin enabled, Pencil MCP allowed
+
+Key constraints applied:
+  - Build Health (F3): scored by config reading only (no build execution)
+  - Figma Bridge (F4): cap lifted to 25 (Figma MCP available)
+```
+
+### 6) Evidence Log
 
 List all files and symbols reviewed, grouped by dimension:
 ```
@@ -549,9 +738,15 @@ B1 Architecture:
   - src/server.ts (entry point)
   - src/routes/ (14 route files)
   - ...
+
+Available Tools:
+  - Figma MCP (design access)
+  - Pencil MCP (design editor)
+  - Preview MCP (browser preview)
+  - ...
 ```
 
-### 5) Gap Analysis & Risk Register
+### 7) Gap Analysis & Risk Register
 
 For each gap found:
 ```
@@ -564,7 +759,7 @@ Gap: [description]
 
 Top 3 regression risks if implementation starts now.
 
-### 6) Path to 100%
+### 8) Path to 100%
 
 Prioritized checklist ordered by impact:
 ```
@@ -577,6 +772,7 @@ Prioritized checklist ordered by impact:
 
 ## Decision Rules
 
+### Core Rules
 - If critical API contracts are missing → cap Agentic Delivery Readiness at 60%.
 - If no tests exist → raise risk severity for all modification tasks.
 - If auth/security flow is unclear → mark all auth-related tasks as Blocked.
@@ -584,6 +780,19 @@ Prioritized checklist ordered by impact:
 - Never claim 100% unless ALL critical flows, contracts, and verification paths are evidenced.
 - Separate **observed facts** (from code/docs) from **inferred behavior** (from patterns/naming).
 - When in doubt, score lower. Overconfidence is more dangerous than underconfidence.
+
+### Project Rules Integration
+- If project rules say "never build" → F3 (Build Health) must be scored by reading configs only. Note this constraint in the evidence log. Do NOT penalize the score for being unable to run builds — score based on config readability.
+- If project rules mandate specific frameworks → verify code compliance. Non-compliance lowers C4 modifier AND the relevant dimension score.
+- If project rules specify code style → subagents must note any deviations found, but do NOT auto-fix during analysis.
+- Any project rule violation found during scanning → add to Gap Analysis as a "Compliance" classification gap.
+
+### Tool & Plugin Awareness
+- If Figma MCP/plugin is available → lift F4 (Figma Bridge) cap from 20 to 25. The agent CAN access Figma directly.
+- If design tools (Pencil MCP, Stitch, UI/UX Pro Max) are available → note in F1 evidence as extended capability.
+- If database MCP tools are available → B1 (Architecture) can verify schemas directly, lift cap if applicable.
+- If browser/preview tools are available → agent can verify runtime behavior, note in Agentic Delivery Readiness.
+- List all available tools in the Evidence Log under a "Available Tools" section.
 
 ## Style Rules
 
