@@ -633,140 +633,129 @@ If Monorepo:       Score each package/service separately, then:
 
 ## Required Output Format
 
-### Header
-```
-# System Understanding Score: [Project Name]
-Project Type: [Frontend | Backend | Full-Stack | Monorepo]
-Scanned: [number] files across [number] directories
-```
+Keep it tight. No walls of text. Every line should be scannable.
 
-### 1) Overall Score Card
+---
+
+### 1) Score Card
 
 ```
-Overall Understanding:       XX% — [Confidence Band]
-Agentic Delivery Readiness:  XX%
+# [Project Name] — System Understanding Score
+
+Type: [Frontend | Backend | Full-Stack | Monorepo]
+Files scanned: [number]
+
+Understanding:  [████████████████████░░░░░] 84%  High
+Delivery Ready: [██████████████████░░░░░░░] 72%  High
 ```
 
-Display a visual bar for each:
-```
-Understanding:  [████████████████████░░░░░] 84%
-Delivery Ready: [██████████████████░░░░░░░] 72%
-```
-
-### 2) Dimension Breakdown
-
-For EACH scored dimension, show:
-```
-[Dimension Name]:  XX/25
-├─ Evidence: [specific files/patterns found]
-├─ Strength: [what is well-understood]
-└─ Gap: [what is missing or unclear]
-```
-
-### 3) Standard Tasks — Confidence Assessment
-
-List tasks the agent CAN do right now, grouped by confidence:
-
-#### Ready to Execute (90%+ confidence)
-- [ ] Task description — *because [evidence]*
-
-#### Can Attempt with Caveats (60-89% confidence)
-- [ ] Task description — *caveat: [what's missing]*
-
-#### Blocked or Risky (<60% confidence)
-- [ ] Task description — *blocked by: [specific gap]*
-
-**Frontend standard tasks to assess:**
-- Change UI components using the design system
-- Integrate a new API endpoint with proper typing
-- Build middleware/BFF layer from backend contracts
-- Fix build errors and type issues
-- Fix component rendering or state issues
-- Implement a Figma design with design-system fidelity
-- Push code changes that maintain Figma design consistency
-- Add responsive/adaptive layouts using existing patterns
-- Refactor components to follow existing conventions
-
-**Backend standard tasks to assess:**
-- Modify API endpoints or add new ones
-- Write test cases from business logic understanding
-- Change database schema with proper migrations
-- Modify auth/authorization logic safely
-- Update CI/CD pipeline configuration
-- Add monitoring or logging to a service
-- Refactor service layer following existing patterns
-- Handle cross-service changes understanding dependencies
-
-**Full-Stack standard tasks to assess (in addition to above):**
-- End-to-end feature implementation (UI → API → DB)
-- Data flow changes spanning frontend and backend
-- Authentication/authorization changes across the stack
-
-### 4) Cross-Cutting Modifiers
+**Dimension scores** — one-line table, no prose:
 
 ```
-Security Posture (C1):           [+X / -X]  — [brief justification]
-Accessibility (C2):              [+X / -X]  — [brief justification]
-Internationalization (C3):       [+X / -X]  — [brief justification]
-Project Rules Compliance (C4):   [+X / -X]  — [brief justification]
+| Dimension                   | Score | Cap Hit? |
+|-----------------------------|-------|----------|
+| F1 Design System            | 21/25 |          |
+| F2 API Integration          | 18/25 | capped — no BE source |
+| F3 Build Health             | 22/25 |          |
+| F4 Figma Bridge             | 12/25 | capped — no Code Connect |
+| U1 Platform Comprehension   | 38/50 |          |
+| U2 Business Logic Alignment | 34/50 |          |
 ```
 
-### 5) Project Rules Detected
+**Modifiers applied**: C1 Security: +2 | C2 A11y: 0 | C3 i18n: -2 | C4 Rules: 0
 
-List all rule files found and key constraints:
+---
+
+### 2) What I Can Do (High Confidence)
+
+**Only list tasks the agent is 90%+ confident it can execute correctly right now.**
+
+Each line = one task, one reason. No sub-bullets.
+
 ```
-Rules found:
-  - CLAUDE.md: code style (Prettier, Tailwind, Radix UI), build commands listed
-  - .cursorrules: NEVER run build or deploy commands
-  - settings.json: Figma plugin enabled, Pencil MCP allowed
-
-Key constraints applied:
-  - Build Health (F3): scored by config reading only (no build execution)
-  - Figma Bridge (F4): cap lifted to 25 (Figma MCP available)
-```
-
-### 6) Evidence Log
-
-List all files and symbols reviewed, grouped by dimension:
-```
-F1 Design System:
-  - components/ui/ (21 components read)
-  - tailwind.config.js (theme tokens extracted)
-  - ...
-
-B1 Architecture:
-  - src/server.ts (entry point)
-  - src/routes/ (14 route files)
-  - ...
-
-Available Tools:
-  - Figma MCP (design access)
-  - Pencil MCP (design editor)
-  - Preview MCP (browser preview)
-  - ...
+CAN DO:
+  Change UI using Radix + Tailwind design system — 21 components mapped, theme understood
+  Fix TypeScript build errors — tsconfig strict, path aliases clear
+  Add responsive layouts — breakpoints + grid patterns identified
+  Refactor components to project conventions — PascalCase, camelCase, Prettier rules clear
+  Integrate typed API endpoint — GraphQL codegen + RTK Query patterns traced
 ```
 
-### 7) Gap Analysis & Risk Register
+---
 
-For each gap found:
+### 3) What I Can Attempt (With Caveats)
+
+**Tasks at 60-89% confidence. State the caveat, not the evidence.**
+
 ```
-Gap: [description]
-├─ Impact: [what tasks are blocked]
-├─ Risk Level: Critical / High / Medium / Low
-├─ Classification: [Contract | Behavior | Ownership | Validation | Infrastructure]
-└─ To close: [what the agent needs — files, docs, access, or clarification]
+CAN ATTEMPT (with caveats):
+  Build new API middleware layer — caveat: backend schema inferred, not verified
+  Implement Figma design — caveat: no Code Connect, manual mapping required
+  Add new user journey end-to-end — caveat: auth flow partially traced
 ```
 
-Top 3 regression risks if implementation starts now.
+---
 
-### 8) Path to 100%
+### 4) What I Cannot Do (Blocked / Risky)
 
-Prioritized checklist ordered by impact:
+**Tasks below 60% confidence. State the blocker.**
+
 ```
-1. [Action] — closes [gap], unlocks [tasks], expected impact: +X%
-2. [Action] — closes [gap], unlocks [tasks], expected impact: +X%
-...
+BLOCKED:
+  Push code matching Figma design 1:1 — no Figma bridge configured
+  Modify auth/session logic — auth flow not fully traced, high regression risk
+  Update CI/CD pipeline — no pipeline config found
 ```
+
+---
+
+### 5) Gaps — What I Need to Reach 100%
+
+**Ranked by impact. Each gap = what's missing + what it unlocks.**
+
+```
+#1  [Gap]  →  unlocks [tasks]  →  expected: +X%
+    Need: [specific file, doc, access, or clarification]
+
+#2  [Gap]  →  unlocks [tasks]  →  expected: +X%
+    Need: [specific file, doc, access, or clarification]
+
+#3  ...
+```
+
+---
+
+### 6) Project Rules & Tools (Compact)
+
+**Only include if rules or tools affected scoring.**
+
+```
+Rules:  .cursorrules (no build), CLAUDE.md (Tailwind + Radix, Prettier)
+Tools:  Figma MCP ✓, Pencil MCP ✓, Preview MCP ✓
+Impact: F3 scored read-only (no build rule), F4 cap lifted (Figma MCP)
+```
+
+---
+
+### 7) Top 3 Risks
+
+Three highest regression risks if implementation starts now. One line each.
+
+```
+1. [Risk] — because [reason]
+2. [Risk] — because [reason]
+3. [Risk] — because [reason]
+```
+
+---
+
+### What NOT to include in output
+
+- No long evidence logs — reference files inline next to scores, not in a separate section
+- No tree diagrams (├─ └─) — use flat tables and one-liners
+- No restating what the skill does or how scoring works
+- No "here's what I analyzed" preamble — go straight to the score card
+- No duplicate information across sections
 
 ---
 
@@ -794,11 +783,46 @@ Prioritized checklist ordered by impact:
 - If browser/preview tools are available → agent can verify runtime behavior, note in Agentic Delivery Readiness.
 - List all available tools in the Evidence Log under a "Available Tools" section.
 
+## Standard Tasks to Evaluate (internal reference — do not dump this list in output)
+
+Assess confidence for each applicable task. Only include tasks that are relevant to the detected project type. In the output, group them into CAN DO / CAN ATTEMPT / BLOCKED — do not list all tasks, only the relevant ones.
+
+**Frontend:**
+- Change UI components using the design system
+- Integrate a new API endpoint with proper typing
+- Build middleware/BFF layer from backend contracts
+- Fix build errors and type issues
+- Fix component rendering or state issues
+- Implement a Figma design with design-system fidelity
+- Push code maintaining Figma design consistency
+- Add responsive/adaptive layouts using existing patterns
+- Refactor components to follow existing conventions
+
+**Backend:**
+- Modify API endpoints or add new ones
+- Write test cases from business logic understanding
+- Change database schema with proper migrations
+- Modify auth/authorization logic safely
+- Update CI/CD pipeline configuration
+- Add monitoring or logging to a service
+- Refactor service layer following existing patterns
+- Handle cross-service changes understanding dependencies
+
+**Full-Stack (in addition to above):**
+- End-to-end feature implementation (UI → API → DB)
+- Data flow changes spanning frontend and backend
+- Authentication/authorization changes across the stack
+
+---
+
 ## Style Rules
 
-- Be concise and evidence-driven.
-- Every percentage MUST be justified by concrete file/symbol references.
-- Do not present assumptions as facts — clearly label inferences.
-- Use tables and visual bars for readability.
-- Group related gaps together.
-- The output should be actionable — the user should know exactly what to do next.
+- **Direct, not descriptive** — lead with the score, not the methodology.
+- **One line per item** — no nested bullets, no multi-paragraph explanations.
+- **Evidence inline** — cite files next to the score, not in a separate section.
+- **Flat tables over tree diagrams** — scannable beats structured.
+- **Action over analysis** — "CAN DO / CAN ATTEMPT / BLOCKED" is the core output.
+- **No preamble** — go straight to the score card. No "I analyzed the following..." intro.
+- Every percentage justified by a concrete file reference (inline, not a separate log).
+- Separate observed facts from inferences — mark inferences with "(inferred)".
+- When in doubt, score lower. Overconfidence is more dangerous than underconfidence.
